@@ -45,6 +45,12 @@ export const PeoplePage = () => {
         const valA = a[sort] ?? '';
         const valB = b[sort] ?? '';
 
+        if (sort === 'born' || sort === 'died') {
+          return order === 'desc'
+            ? Number(valB) - Number(valA)
+            : Number(valA) - Number(valB);
+        }
+
         if (valA < valB) {
           return order === 'desc' ? 1 : -1;
         }
