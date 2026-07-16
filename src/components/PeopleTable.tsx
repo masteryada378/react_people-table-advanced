@@ -1,13 +1,39 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Person } from '../types';
 import { PersonLink } from './PersonLink';
 
-type Props = {
-  people: Person[];
-};
+type Props = { people: Person[] };
 
 export const PeopleTable = ({ people }: Props) => {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const sort = searchParams.get('sort');
+  const order = searchParams.get('order');
+
+  const handleSort = (field: string) => {
+    const params = new URLSearchParams(searchParams);
+
+    if (sort !== field) {
+      params.set('sort', field);
+      params.delete('order');
+    } else if (order !== 'desc') {
+      params.set('order', 'desc');
+    } else {
+      params.delete('sort');
+      params.delete('order');
+    }
+
+    setSearchParams(params);
+  };
+
+  const getSortArrow = (field: string) => {
+    if (sort !== field) {
+      return '';
+    }
+
+    return order === 'desc' ? ' ↓' : ' ↑';
+  };
 
   return (
     <table
@@ -16,10 +42,10 @@ export const PeopleTable = ({ people }: Props) => {
     >
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Sex</th>
-          <th>Born</th>
-          <th>Died</th>
+          <th onClick={() => handleSort('name')}>Name{getSortArrow('name')}</th>
+          <th onClick={() => handleSort('sex')}>Sex{getSortArrow('sex')}</th>
+          <th onClick={() => handleSort('born')}>Born{getSortArrow('born')}</th>
+          <th onClick={() => handleSort('died')}>Died{getSortArrow('died')}</th>
           <th>Mother</th>
           <th>Father</th>
         </tr>
@@ -27,8 +53,8 @@ export const PeopleTable = ({ people }: Props) => {
       <tbody>
         {people.map(person => (
           <tr
-            key={person.slug}
             data-cy="person"
+            key={person.slug}
             className={person.slug === slug ? 'has-background-warning' : ''}
           >
             <td>

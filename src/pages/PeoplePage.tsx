@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Routes, Route, useSearchParams } from 'react-router-dom';
 import { getPeople } from '../api';
 import { Person } from '../types';
 import { Loader } from '../components/Loader';
@@ -9,6 +9,7 @@ export const PeoplePage = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     getPeople()
@@ -17,9 +18,73 @@ export const PeoplePage = () => {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const query = searchParams.get('query')?.toLowerCase() || '';
+  const centuries = searchParams.getAll('centuries');
+  const sort = searchParams.get('sort') as keyof Person | null;
+  const order = searchParams.get('order');
+
+  const visiblePeople = useMemo(() => {
+    let filtered = people.filter(p => {
+      const matchQuery =
+        !query ||
+        p.name.toLowerCase().includes(query) ||
+        p.motherName?.toLowerCase().includes(query) ||
+        p.fatherName?.toLowerCase().includes(query);
+
+      const century = Math.ceil(p.born / 100).toString();
+      const matchCentury =
+        centuries.length === 0 || centuries.includes(century);
+
+      return matchQuery && matchCentury;
+    });
+
+    if (sort) {
+      filtered = [...filtered].sort((a, b) => {
+        const valA = a[sort] || '';
+        const valB = b[sort] || '';
+
+        if (valA < valB) {
+          return order === 'desc' ? 1 : -1;
+        }
+
+        if (valA > valB) {
+          return order === 'desc' ? -1 : 1;
+        }
+
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [people, query, centuries, sort, order]);
+
+  const handleQueryChange = (val: string) => {
+    const params = new URLSearchParams(searchParams);
+
+    if (val) {
+      params.set('query', val);
+    } else {
+      params.delete('query');
+    }
+
+    setSearchParams(params);
+  };
+
   return (
     <>
       <h1 className="title">People Page</h1>
+
+      {!isLoading && !isError && people.length > 0 && (
+        <div className="sidebar">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchParams.get('query') || ''}
+            onChange={e => handleQueryChange(e.target.value)}
+          />
+        </div>
+      )}
+
       <div className="block">
         <div className="box table-container">
           {isLoading && <Loader />}
@@ -33,8 +98,14 @@ export const PeoplePage = () => {
           )}
           {!isLoading && !isError && people.length > 0 && (
             <Routes>
-              <Route path="/" element={<PeopleTable people={people} />} />
-              <Route path=":slug" element={<PeopleTable people={people} />} />
+              <Route
+                path="/"
+                element={<PeopleTable people={visiblePeople} />}
+              />
+              <Route
+                path=":slug"
+                element={<PeopleTable people={visiblePeople} />}
+              />
             </Routes>
           )}
         </div>
